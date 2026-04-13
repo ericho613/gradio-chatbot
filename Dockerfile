@@ -21,6 +21,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # the EXPOSE instruction only functions as documentation
 EXPOSE 7860
 
+# This environment variable is required to run Gradio with Docker
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 
 # Run app.py
