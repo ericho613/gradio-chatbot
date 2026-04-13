@@ -58,4 +58,4 @@ if __name__== '__main__':
     if os.getenv("DEPLOYMENT_ENVIRONMENT", "development") != "production":
         view.launch(auth=(user, password))
     else:
-        view.launch(auth=(user, password), server_name="0.0.0.0", server_port=7860)
+        view.launch(auth=(user, password), server_name="0.0.0.0", server_port=7860, root_path="/chatbot/")
