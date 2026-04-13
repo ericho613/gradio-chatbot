@@ -1,0 +1,22 @@
+services:
+  chatbot:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      # args:
+      #   key: value
+    ports:
+      - '7860:7860'
+    # environment: 
+      # - OPENAI_API_KEY=
+      # - GPT_MODEL=gpt-4o-mini
+      # - DEPLOYMENT_ENVIRONMENT=development
+      # - USER=
+      # - PASSWORD=
+    # volumes: 
+    #   # named volume for logs
+    #   - logs:/logs
+    env_file: 
+      - ./.env
+# volumes: 
+#   logs:
