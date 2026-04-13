@@ -55,4 +55,7 @@ view = gr.ChatInterface(
 )
 
 if __name__== '__main__':
-    view.launch(auth=(user, password))
+    if os.getenv("DEPLOYMENT_ENVIRONMENT", "development") != "production":
+        view.launch(auth=(user, password))
+    else:
+        view.launch(auth=(user, password), server_name="0.0.0.0", server_port=7860)
