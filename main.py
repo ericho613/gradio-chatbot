@@ -1,14 +1,24 @@
 import os
 import boto3
 import gradio as gr
-from botocore.exceptions import ClientError
+from botocore.config import Config
+from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError
 
 # ---------- Configuration ----------
 
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-opus-5-5")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-5-5")
 AWS_REGION = os.environ.get("AWS_REGION", "ca-central-1")
 
-bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+bedrock_config = Config(
+    connect_timeout=10,     # fail fast if the endpoint is unreachable
+    read_timeout=3600,      # allow long generations (AWS guidance for Claude)
+    retries={
+        "max_attempts": 2,  # don't silently retry long requests many times
+        "mode": "standard",
+    },
+)
+
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION, config=bedrock_config)
 
 
 def extract_text(content):
@@ -69,21 +79,19 @@ def to_bedrock_messages(history, user_message):
 
 
 def chat(user_message, history, system_prompt="You are a helpful assistant.",
-         max_tokens=128000):
+         max_tokens=4096):
     messages = to_bedrock_messages(history, user_message)
     request = {
         "modelId": MODEL_ID,
         "messages": messages,
-        "inferenceConfig": {
-            "maxTokens": int(max_tokens)
-        },
+        "inferenceConfig": {"maxTokens": int(max_tokens)},
     }
     if system_prompt and system_prompt.strip():
         request["system"] = [{"text": system_prompt.strip()}]
 
+    partial = ""
     try:
         response = bedrock.converse_stream(**request)
-        partial = ""
         for event in response["stream"]:
             if "contentBlockDelta" in event:
                 delta = event["contentBlockDelta"]["delta"]
@@ -91,10 +99,15 @@ def chat(user_message, history, system_prompt="You are a helpful assistant.",
                     partial += delta["text"]
                     yield partial
             elif "messageStop" in event:
-                reason = event["messageStop"].get("stopReason")
-                if reason == "max_tokens":
+                if event["messageStop"].get("stopReason") == "max_tokens":
                     partial += "\n\n*[Response truncated: max tokens reached]*"
                     yield partial
+    except (ReadTimeoutError, ConnectTimeoutError) as e:
+        yield partial + (
+            f"\n\n**Timeout**: {e}\n\nThe model took too long to respond. "
+            "Try a smaller max_tokens value, or check network/VPC access to "
+            f"bedrock-runtime.{AWS_REGION}.amazonaws.com."
+        )
     except ClientError as e:
         code = e.response["Error"]["Code"]
         msg = e.response["Error"]["Message"]
@@ -103,9 +116,11 @@ def chat(user_message, history, system_prompt="You are a helpful assistant.",
             hint = "\n\nCheck that BEDROCK_MODEL_ID is correct; you may need an inference profile ID."
         elif code == "AccessDeniedException":
             hint = "\n\nEnable model access in the Bedrock console and check your IAM permissions."
-        yield f"**{code}**: {msg}{hint}"
+        elif code == "ThrottlingException":
+            hint = "\n\nYou're being rate limited; wait and retry, or request a quota increase."
+        yield partial + f"\n\n**{code}**: {msg}{hint}"
     except Exception as e:
-        yield f"Unexpected error: {e}"
+        yield partial + f"\n\nUnexpected error: {type(e).__name__}: {e}"
 
 
 # Request the "messages" history format where supported (Gradio 4.x/5.x).
