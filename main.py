@@ -3,8 +3,11 @@ import boto3
 import gradio as gr
 from botocore.config import Config
 from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError
+from dotenv import load_dotenv
 
 # ---------- Configuration ----------
+
+load_dotenv(override=True)
 
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-5-5")
 AWS_REGION = os.environ.get("AWS_REGION", "ca-central-1")
