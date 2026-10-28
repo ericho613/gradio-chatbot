@@ -79,7 +79,7 @@ def to_bedrock_messages(history, user_message):
 
 
 def chat(user_message, history, system_prompt="You are a helpful assistant.",
-         max_tokens=4096):
+         max_tokens=128000):
     messages = to_bedrock_messages(history, user_message)
     request = {
         "modelId": MODEL_ID,
