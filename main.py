@@ -126,6 +126,8 @@ def chat(user_message, history, system_prompt="You are a helpful assistant.",
         yield partial + f"\n\nUnexpected error: {type(e).__name__}: {e}"
 
 
+print(f"Model: {MODEL_ID}\nRegion: {AWS_REGION}")
+
 # Request the "messages" history format where supported (Gradio 4.x/5.x).
 # Gradio 6 removed the `type` argument and always uses messages.
 try:
